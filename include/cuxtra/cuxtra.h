@@ -1,16 +1,24 @@
 #pragma once
 
-#include <string>
 #include <cstddef>
 #include <cstdint>
 
-#define ENV_CUDA_DLL_PATH     "X_CUDA_DLL_PATH"
-#define ENV_CUDLA_DLL_PATH    "X_CUDLA_DLL_PATH"
+#define CUXTRA_CUDA_LIB_ENV_NAME       "CUXTRA_CUDA_LIB"
+#define CUXTRA_CUDART_LIB_ENV_NAME     "CUXTRA_CUDART_LIB"
+#define CUXTRA_CUDLA_LIB_ENV_NAME      "CUXTRA_CUDLA_LIB"
 
-#ifdef __cplusplus
-#define CUXTRA_FUNC extern "C" __attribute__((visibility("default")))
+#ifdef _WIN32
+    #ifdef __cplusplus
+        #define CUXTRA_FUNC extern "C" __declspec(dllexport)
+    #else
+        #define CUXTRA_FUNC __declspec(dllexport)
+    #endif
 #else
-#define CUXTRA_FUNC __attribute__((visibility("default")))
+    #ifdef __cplusplus
+        #define CUXTRA_FUNC extern "C" __attribute__((visibility("default")))
+    #else
+        #define CUXTRA_FUNC __attribute__((visibility("default")))
+    #endif
 #endif
 
 typedef int                 CUdevice;
@@ -53,20 +61,16 @@ CUXTRA_FUNC size_t cuXtraInstrMemcpyFtoH(void *dst, const CUdeviceptr src_instr,
                                          CUfunction src_func);
 
 // Kernel information
+CUXTRA_FUNC void cuXtraGetFunctionName(CUcontext ctx, CUfunction func, const char **name);
 CUXTRA_FUNC size_t cuXtraGetParamCount(CUfunction func);
 CUXTRA_FUNC void cuXtraGetParamInfo(CUfunction func, size_t param_idx,
-                                    size_t *offset, size_t *size,
-                                    bool *in_shm);
+                                    size_t *offset, size_t *size, bool *in_shm);
 CUXTRA_FUNC void cuXtraGetBinary(CUcontext ctx, CUfunction func,
-                                 const void **binary, size_t *size,
-                                 bool relocated);
+                                 const void **binary, size_t *size, bool relocated);
 
 // Kernel runtime control
-CUXTRA_FUNC void cuXtraGetDebuggerParams(CUfunction func, void *params,
-                                         size_t offset, size_t size);
-CUXTRA_FUNC void cuXtraSetDebuggerParams(CUfunction func,
-                                         const void *params,
-                                         size_t size);
+CUXTRA_FUNC void cuXtraGetDebuggerParams(CUfunction func, void *params, size_t offset, size_t size);
+CUXTRA_FUNC void cuXtraSetDebuggerParams(CUfunction func, const void *params, size_t size);
 CUXTRA_FUNC CUdeviceptr cuXtraGetEntryPoint(CUfunction func);
 CUXTRA_FUNC void cuXtraSetEntryPoint(CUfunction func, CUdeviceptr entry_point);
 CUXTRA_FUNC size_t cuXtraGetLocalRegsPerThread(CUfunction func);
@@ -84,9 +88,7 @@ CUXTRA_FUNC void cuXtraFlushL2Cache(CUcontext ctx);
 CUXTRA_FUNC void cuXtraFlushInvalL2Cache(CUcontext ctx);
 
 // Trap handler operations
-CUXTRA_FUNC void cuXtraGetTrapHandlerInfo(CUcontext ctx,
-                                          CUdeviceptr *handler,
-                                          size_t *size);
+CUXTRA_FUNC void cuXtraGetTrapHandlerInfo(CUcontext ctx, CUdeviceptr *handler, size_t *size);
 CUXTRA_FUNC void cuXtraTriggerTrap(CUcontext ctx);
 
 // Timeslice group (TSG) operations
@@ -108,5 +110,4 @@ CUXTRA_FUNC CUcontext cuXtraCreateContextJetson(CUdevice dev, unsigned int flags
 // Dla queue operations
 CUXTRA_FUNC void cuXtraSuspendDla(cudlaDevHandle dev_handle);
 CUXTRA_FUNC void cuXtraResumeDla(cudlaDevHandle dev_handle);
-CUXTRA_FUNC cudlaDevHandle cuXtraCreateDevHandleDla(uint64_t device,
-                                                    uint32_t flags);
+CUXTRA_FUNC cudlaDevHandle cuXtraCreateDevHandleDla(uint64_t device, uint32_t flags);
