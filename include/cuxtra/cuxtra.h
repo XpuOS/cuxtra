@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 #define CUXTRA_CUDA_LIB_ENV_NAME       "CUXTRA_CUDA_LIB"
 #define CUXTRA_CUDART_LIB_ENV_NAME     "CUXTRA_CUDART_LIB"
@@ -21,13 +22,70 @@
     #endif
 #endif
 
-typedef int                 CUdevice;
-typedef struct CUctx_st    *CUcontext;
-typedef struct CUfunc_st   *CUfunction;
-typedef struct CUstream_st *CUstream;
-typedef unsigned long long  CUdeviceptr;
-
+typedef int                      CUdevice;
+typedef struct CUctx_st         *CUcontext;
+typedef struct CUfunc_st        *CUfunction;
+typedef struct CUkern_st        *CUkernel;
+typedef struct CUstream_st      *CUstream;
+typedef unsigned long long       CUdeviceptr;
+typedef struct CUgraph_st       *CUgraph;
+typedef struct CUgraphNode_st   *CUgraphNode;
+typedef struct CUgraphExec_st   *CUgraphExec;
 typedef struct cudlaDevHandle_t *cudlaDevHandle;
+
+// Identical to CUgraphNodeType from cuda.h
+typedef enum CUXgraphNodeType_enum {
+    CUX_GRAPH_NODE_TYPE_KERNEL           = 0, /**< GPU kernel node */
+    CUX_GRAPH_NODE_TYPE_MEMCPY           = 1, /**< Memcpy node */
+    CUX_GRAPH_NODE_TYPE_MEMSET           = 2, /**< Memset node */
+    CUX_GRAPH_NODE_TYPE_HOST             = 3, /**< Host (executable) node */
+    CUX_GRAPH_NODE_TYPE_GRAPH            = 4, /**< Node which executes an embedded graph */
+    CUX_GRAPH_NODE_TYPE_EMPTY            = 5, /**< Empty (no-op) node */
+    CUX_GRAPH_NODE_TYPE_WAIT_EVENT       = 6, /**< External event wait node */
+    CUX_GRAPH_NODE_TYPE_EVENT_RECORD     = 7, /**< External event record node */
+    CUX_GRAPH_NODE_TYPE_EXT_SEMAS_SIGNAL = 8, /**< External semaphore signal node */
+    CUX_GRAPH_NODE_TYPE_EXT_SEMAS_WAIT   = 9, /**< External semaphore wait node */
+    CUX_GRAPH_NODE_TYPE_MEM_ALLOC        = 10,/**< Memory Allocation Node */
+    CUX_GRAPH_NODE_TYPE_MEM_FREE         = 11,/**< Memory Free Node */
+    CUX_GRAPH_NODE_TYPE_BATCH_MEM_OP     = 12,/**< Batch MemOp Node */
+    CUX_GRAPH_NODE_TYPE_CONDITIONAL      = 13,/**< Conditional Node */
+} CUXgraphNodeType;
+
+typedef enum CUXMemcpyType_enum {
+    CUX_MEMCPY_TYPE_H2D = 0,
+    CUX_MEMCPY_TYPE_D2H = 1,
+    CUX_MEMCPY_TYPE_D2D = 2,
+} CUXMemcpyType;
+
+typedef struct CUXTRA_KERNEL_PARAMS_st {
+    CUfunction func;
+    unsigned int gdim_x;
+    unsigned int gdim_y;
+    unsigned int gdim_z;
+    unsigned int bdim_x;
+    unsigned int bdim_y;
+    unsigned int bdim_z;
+    unsigned int shmem;
+    void **params;
+    void **extra;
+    CUkernel kern;
+} CUXTRA_KERNEL_PARAMS;
+
+typedef struct CUXTRA_MEMCPY_PARAMS_st {
+    const void *dst;
+    const void *src;
+    size_t size;
+    CUXMemcpyType type;
+} CUXTRA_MEMCPY_PARAMS;
+
+typedef struct CUXTRA_MEMSET_PARAMS_st {
+    CUdeviceptr dst;
+    size_t pitch;
+    unsigned int value;
+    unsigned int elem_size;
+    size_t width;
+    size_t height;
+} CUXTRA_MEMSET_PARAMS;
 
 // Memory operations
 CUXTRA_FUNC size_t cuXtraMemcpyHtoD(CUdeviceptr dst, const void *src,
@@ -61,7 +119,9 @@ CUXTRA_FUNC size_t cuXtraInstrMemcpyFtoH(void *dst, const CUdeviceptr src_instr,
                                          CUfunction src_func);
 
 // Kernel information
+CUXTRA_FUNC CUfunction cuXtraKernelGetFunction(CUkernel kernel);
 CUXTRA_FUNC void cuXtraGetFunctionName(CUcontext ctx, CUfunction func, const char **name);
+CUXTRA_FUNC void cuXtraGetExtraBuffer(void **extra, void **buffer, size_t *size);
 CUXTRA_FUNC size_t cuXtraGetParamCount(CUfunction func);
 CUXTRA_FUNC void cuXtraGetParamInfo(CUfunction func, size_t param_idx,
                                     size_t *offset, size_t *size, bool *in_shm);
@@ -111,3 +171,15 @@ CUXTRA_FUNC CUcontext cuXtraCreateContextJetson(CUdevice dev, unsigned int flags
 CUXTRA_FUNC void cuXtraSuspendDla(cudlaDevHandle dev_handle);
 CUXTRA_FUNC void cuXtraResumeDla(cudlaDevHandle dev_handle);
 CUXTRA_FUNC cudlaDevHandle cuXtraCreateDevHandleDla(uint64_t device, uint32_t flags);
+
+// File descriptor queries
+CUXTRA_FUNC int cuXtraGetRmControlFd();
+CUXTRA_FUNC int cuXtraGetUvmVaSpaceFd();
+
+// CUDA graph queries
+CUXTRA_FUNC void cuXtraGraphExecGetNodes(CUgraphExec graph_exec, size_t buf_num,
+                                         CUgraphNode *nodes, size_t *num);
+CUXTRA_FUNC CUXgraphNodeType cuXtraGraphNodeGetType(CUgraphNode node);
+CUXTRA_FUNC void cuXtraGraphKernelNodeGetParams(CUgraphNode node, CUXTRA_KERNEL_PARAMS *params);
+CUXTRA_FUNC void cuXtraGraphMemcpyNodeGetParams(CUgraphNode node, CUXTRA_MEMCPY_PARAMS *params);
+CUXTRA_FUNC void cuXtraGraphMemsetNodeGetParams(CUgraphNode node, CUXTRA_MEMSET_PARAMS *params);
